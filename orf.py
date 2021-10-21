@@ -1,6 +1,6 @@
 import read_fasta
 import sys
-
+import seq_lengths
 
 """
 In molecular biology, a reading frame is a way of dividing the DNA sequence of nucleotides into a set of consecutive,
@@ -36,13 +36,19 @@ def seq_as_reading_frames(seq, start=0):
     return result
 
 
-def find_orfs_in_reading_frames(rfs):
-    """The input is a list of 3 lists corresponding to the reading frames for each start 0,1,2 """
+def find_orfs_in_seq(seq):
+    """ The input is a list of 3 lists corresponding to the reading frames corresponding to a sequence for each start 0,1,2
+        Returns a list the ORFs for a sequence """
+    reading_frames = [
+        seq_as_reading_frames(seq),
+        seq_as_reading_frames(seq, 1),
+        seq_as_reading_frames(seq, 2)
+    ]
     orfs_found = []
     for i in range(0, 3):
         # print('Start position *****************************', i)
         orf = []
-        for frame in rfs[i]:
+        for frame in reading_frames[i]:
             if is_START_codon(frame):
                 # print(frame, "is start codon and orf so far", orf)
                 if (not orf):  # if this frame would be the first in the ORF
@@ -66,8 +72,12 @@ def find_orfs_in_reading_frames(rfs):
                 # print(frame, "not start not stop codon and orf so far", orf)
                 orf.append(frame)
     # do not forget to filter out those who dont start by the START codon and end with any of the STOP codons
-    filtered = [o for o in orfs_found if (o.startswith('ATG') and is_STOP_codon(o[len(o) - 3: len(o)]))]
+    filtered = [o for o in orfs_found if o.startswith('ATG') and (len(o) >= 9) and is_STOP_codon(o[len(o) - 3: len(o)])]
     return filtered
+
+
+def longest_orf_for_seq(orfs):
+    return max(orfs, key=len)
 
 
 def is_START_codon(reading_frame):
@@ -82,30 +92,13 @@ def is_STOP_codon(reading_frame):
 
 def longest_ORF_in_file(f):
     """ What is the identifier of the sequence containing the longest ORF?
-        Returns Tuple(identifier, length) """
+        Returns List of Tuple(identifier, length) because maybe i would have 2 longest ORF with the same length"""
     records = read_fasta.read(f)
-    for identifier, seq in records.items():
-        reading_frames = [
-            seq_as_reading_frames(seq),
-            seq_as_reading_frames(seq, 1),
-            seq_as_reading_frames(seq, 2)
-        ]
-        orfs_for_seq = find_orfs_in_reading_frames(reading_frames)
-        print("Sequence identifier:", identifier, orfs_for_seq)
+    records_of_longest_orfs = {identifier: longest_orf_for_seq(find_orfs_in_seq(seq)) for identifier, seq in records.items()}
+    records_of_orfs_lengths = seq_lengths.compute_lengths(records_of_longest_orfs)
+    longest_Orf_in_file = max(records_of_orfs_lengths.values())
+    return [(identifier,  longest_Orf_in_file) for identifier in records_of_orfs_lengths if records_of_orfs_lengths[identifier] == longest_Orf_in_file]
 
-    return None
-    # return (identifier, length)
-
-
-# def longest_ORF_length_in_file(f):
-#     """ What is the length of the longest ORF in the file?
-#         Returns integer """
-#     return longest_ORF_in_file(f)[1]
-
-# def longest_ORF_id_in_file(f):
-#     """ What is the length of the longest ORF in the file?
-#         Returns string """
-#     return longest_ORF_in_file(f)[0]
 
 
 if __name__ == "__main__":
