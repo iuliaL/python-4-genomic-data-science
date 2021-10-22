@@ -9,18 +9,18 @@ def compute_lengths(recs):
     return records_length
 
 
-def shortest_seq(records_lengths):
+def shortest_seq(records):
     """ What are the identifiers of the shortest sequences?
         Returns a tuple with a list of all shortest sequences and the length"""
-    lengths_dict = compute_lengths(records_lengths)
+    lengths_dict = compute_lengths(records)
     min_value = min(lengths_dict.values())
     return [k for k in lengths_dict if lengths_dict[k] == min_value], min_value
 
 
-def longest_seq(records_lengths):
+def longest_seq(records):
     """ What are the identifiers of the longest sequences?
         Returns a tuple with a list of all longest sequences and the length"""
-    lengths_dict = compute_lengths(records_lengths)
+    lengths_dict = compute_lengths(records)
     max_value = max(lengths_dict.values())
     return [k for k in lengths_dict if lengths_dict[k] == max_value], max_value
 
