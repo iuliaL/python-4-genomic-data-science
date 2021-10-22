@@ -11,23 +11,35 @@ def compute_lengths(recs):
 
 def shortest_seq(records_lengths):
     """ What are the identifiers of the shortest sequences?
-        Returns a list"""
-    min_value = min(records_lengths.values())
-    return [k for k in records_lengths if records_lengths[k] == min_value]
+        Returns a tuple with a list of all shortest sequences and the length"""
+    lengths_dict = compute_lengths(records_lengths)
+    min_value = min(lengths_dict.values())
+    return [k for k in lengths_dict if lengths_dict[k] == min_value], min_value
 
 
 def longest_seq(records_lengths):
     """ What are the identifiers of the longest sequences?
-        Returns a list"""
-    max_value = max(records_lengths.values())
-    return [k for k in records_lengths if records_lengths[k] == max_value]
+        Returns a tuple with a list of all longest sequences and the length"""
+    lengths_dict = compute_lengths(records_lengths)
+    max_value = max(lengths_dict.values())
+    return [k for k in lengths_dict if lengths_dict[k] == max_value], max_value
 
 
 if __name__ == "__main__":
     f = sys.argv[1]
     parsed_records = read_fasta.read(f)
     # Longest sequences
-    sys.stdout.write("Longest sequences are: " + " ".join(longest_seq(parsed_records)) + '\n')
+    long_sequences, l_length = longest_seq(parsed_records)
+    sys.stdout.write(
+        "Longest sequences and their length : " +
+        " ".join(
+            long_sequences) +
+        '\n -> ' +
+        str(l_length) + '\n')
 
     # Shortest sequences
-    sys.stdout.write("Shortest sequences are: " + " ".join(shortest_seq(parsed_records)) + '\n')
+    short_sequences, s_length = shortest_seq(parsed_records)
+    sys.stdout.write("Shortest sequences and their length: " + " ".join(
+        short_sequences) +
+        '\n -> ' +
+        str(s_length) + '\n')
