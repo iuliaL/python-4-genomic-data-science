@@ -121,7 +121,7 @@ def build_id_pos_longest_orfs(records):
     result = {}
     for identifier, seq, in records.items():
         orfs = find_orfs_in_seq(seq)
-        print("Sequence", identifier, "has ", len(orfs), "orfs:")
+        # print("Sequence", identifier, "has ", len(orfs), "orfs")
 
         if orfs:
             result[identifier] = longest_orf_for_seq(orfs)
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     # print("Longest ORF in file with reading frame start position", start_pos, "is at identifier", identifier, "and has the length of", l_length)
 
     # Longest ORF in a given identifier i.e. gi|142022655|gb|EQ086233.1|16
-    identifier = 'gi|142022655|gb|EQ086233.1|16'
-    identifier = longest_ORF_in_given_seq(sys.argv[1], identifier)
-    l_length = len(identifier[1])
-    print("Longest ORF identifier", identifier, "has length", l_length)
+    given_id = 'gi|142022655|gb|EQ086233.1|16'
+    pos, orf = longest_ORF_in_given_seq(sys.argv[1], given_id)
+    l_length = len(orf)
+    print('Longest ORF for ', given_id, ' has length', l_length)
