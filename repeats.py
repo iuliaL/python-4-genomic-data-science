@@ -13,7 +13,8 @@ import seq_lengths
 
 
 def all_repeats_in_all_seqs(N, f):
-    """Identify all repeats of length N in all sequences in the FASTA file"""
+    """Identify all repeats of length N in all sequences in the FASTA file
+    Returns dict of repeats: times"""
     # read fasta file
     seqs_dict = read_fasta.read(f)
     all_seqs = seqs_dict.values()
@@ -32,9 +33,11 @@ def all_repeats_in_all_seqs(N, f):
 
 def most_freq_repeat(N, f):
     repeats = all_repeats_in_all_seqs(N, f)
-    return seq_lengths.longest_seq(repeats)
+    max_freq = max(repeats.values())
+    return [k for k in repeats if repeats[k] == max_freq], max_freq
 
 
-N = 5
+N = 4
 print('Repeats dict', all_repeats_in_all_seqs(N, sys.argv[1]))
-print('Longest repeats are:', most_freq_repeat(N, sys.argv[1]))
+most_freq_repeats, times = most_freq_repeat(N, sys.argv[1])
+print('Most frequent repeats are:', most_freq_repeats, " and they occur", times, "times")
