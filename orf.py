@@ -101,8 +101,32 @@ def longest_ORF_in_file(f):
             "longest_ORF_length": len(records_of_longest_orfs[identifier][1])}
 
 
+def longest_ORF_in_file_at_pos(position, f):
+    """ What is the identifier of the sequence containing the longest ORF throughout the sequences in the whole fasta file?
+        What is the starting position of the longest ORF in the sequence that contains it ? Starting position should be 1/2/3
+        Returns dict(identifier, position, longest orf found and its length)"""
+    records = read_fasta.read(f)
+    records_of_longest_orfs = build_id_pos_longest_orfs(records)
+    records_of_orfs_lengths = {identifier: (pos, len(orf)) for (identifier, (pos, orf)) in records_of_longest_orfs.items() if pos == position - 1}
+    longest = max(records_of_orfs_lengths.values(), key=lambda item: item[1])
+    identifier = [(id, longest) for id in records_of_orfs_lengths if records_of_orfs_lengths[id] == longest][0][0]
+    return {"id": identifier,
+            "start position": records_of_longest_orfs[identifier][0] + 1,  # !!!! atention to add 1 here cause i used the zero index
+            "longest_ORF": records_of_longest_orfs[identifier][1],
+            "longest_ORF_length": len(records_of_longest_orfs[identifier][1])}
+
+
 def build_id_pos_longest_orfs(records):
-    return {identifier: longest_orf_for_seq(find_orfs_in_seq(seq)) for identifier, seq in records.items()}
+    """ Returns dict of id: (pos, longest_orf_found) """
+    result = {}
+    for identifier, seq, in records.items():
+        orfs = find_orfs_in_seq(seq)
+        print("Sequence", identifier, "has ", len(orfs), "orfs:")
+
+        if orfs:
+            result[identifier] = longest_orf_for_seq(orfs)
+    return result
+
 
 def longest_ORF_length_in_file(f):
     """What is the length of the longest ORF in the file?
@@ -114,9 +138,28 @@ def longest_ORF_in_given_seq(f, identifier):
     """For a given sequence identifier, what is the longest ORF contained in the sequence represented by that identifier?"""
     records = read_fasta.read(f)
     records_of_longest_orfs = build_id_pos_longest_orfs(records)
-    return records_of_longest_orfs[identifier] # !!!! atention to add 1 to get the position cause i used the zero index
+    return records_of_longest_orfs[identifier]  # !!!! atention to add 1 to get the position cause i used the zero index
 
 
 if __name__ == "__main__":
-    # print("Longest ORF in file is at identifier", longest_ORF_in_file(sys.argv[1]))
-    print("Longest ORF in given sequence identifier", longest_ORF_in_given_seq(sys.argv[1], 'gi|142022655|gb|EQ086233.1|43'))
+    # Longest ORF in whole file
+
+    # longest_orf_at_pos = longest_ORF_in_file(sys.argv[1])
+    # identifier = longest_orf_at_pos['id']
+    # start_pos = longest_orf_at_pos['start position']
+    # l_length = longest_orf_at_pos['longest_ORF_length']
+    # print("Longest ORF in file is at identifier", identifier, "with reading frame start position", start_pos, "and length of", l_length)
+
+    # Longest ORF in whole file at the given start position
+
+    # longest_orf_at_pos = longest_ORF_in_file_at_pos(2, sys.argv[1])
+    # identifier = longest_orf_at_pos['id']
+    # start_pos = longest_orf_at_pos['start position']
+    # l_length = longest_orf_at_pos['longest_ORF_length']
+    # print("Longest ORF in file with reading frame start position", start_pos, "is at identifier", identifier, "and has the length of", l_length)
+
+    # Longest ORF in a given identifier i.e. gi|142022655|gb|EQ086233.1|16
+    identifier = 'gi|142022655|gb|EQ086233.1|16'
+    identifier = longest_ORF_in_given_seq(sys.argv[1], identifier)
+    l_length = len(identifier[1])
+    print("Longest ORF identifier", identifier, "has length", l_length)
