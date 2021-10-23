@@ -25,59 +25,8 @@ Given an input reading frame on the forward strand (1, 2, or 3) your program sho
 all ORFs present in each sequence of the FASTA file, and answer the following questions:"""
 
 
-def seq_as_reading_frames(seq, start=0):
-    """Start can be index 0, 1, 2. Default is 0.
-        Returns list of 3-mers"""
-    result = []
-    for i in range(start, len(seq), 3):
-        curr_3mer = seq[i:i + 3]
-        if len(curr_3mer) == 3:  # account for the possible 1 or 2mers at the end of the sequence if start is > 0
-            result.append(curr_3mer)
-    return result
-
-
-def find_orfs_in_seq(seq):
-    """ The input is a list of 3 lists corresponding to the reading frames corresponding to a sequence for each start 0,1,2
-        Returns a list of Tuples with (start, ORF) for a sequence """
-    reading_frames = [
-        seq_as_reading_frames(seq),
-        seq_as_reading_frames(seq, 1),
-        seq_as_reading_frames(seq, 2)
-    ]
-    orfs_found = []
-    for i in range(0, 3):
-        orf = []
-        for frame in reading_frames[i]:
-            if is_START_codon(frame):
-                if (not orf):  # if this frame would be the first in the ORF
-                    orf.append(frame)
-                    continue
-                else:  # reset
-                    orf = []
-            if is_STOP_codon(frame):
-                if (not orf):  # if the stop codon frame is the first in the ORF
-                    continue
-                elif len(orf) < 2:  # if there are less than 2 frames before
-                    orf = []
-                    continue
-                else:
-                    orf.append(frame)
-                    # reset orf
-                    orfs_found.append((i, "".join(orf)))
-                    orf = []
-            else:  # if neither START nor STOP codons
-                orf.append(frame)
-    # do not forget to filter out those who dont start by the START codon and end with any of the STOP codons
-    filtered = [o for o in orfs_found if o[1].startswith('ATG') and (len(o[1]) >= 9) and is_STOP_codon(o[1][len(o[1]) - 3: len(o[1])])]
-    return filtered
-
-
-def longest_orf_for_seq(orfs):
-    return max(orfs, key=lambda item: len(item[1]))
-
-
 def is_START_codon(reading_frame):
-    """Returns True is ATG"""
+    """Returns True if ATG"""
     return reading_frame == "ATG"
 
 
@@ -86,80 +35,141 @@ def is_STOP_codon(reading_frame):
     return reading_frame in ('TAA', 'TAG', 'TGA')
 
 
+def startstop_codon(zero_index_pos, seq):
+    for i in range(zero_index_pos, len(seq), 3):
+        codon1 = seq[i:i + 3]
+        if is_START_codon(codon1):
+            position1 = i
+            for j in range(position1, len(seq), 3):
+                codon2 = seq[j:j + 3]
+                if is_STOP_codon(codon2):
+                    position2 = j
+                    yield (zero_index_pos + 1, position2 - position1 + 3, seq[position1:position2 + 3])
+                    break
+
+
+def longest_orfs_in_seq_per_pos(seq):
+    """ The input is the sequence
+        Returns a dict of reading_frame_pos : Tuple with (ORF_length, ORF) for a sequence """
+    orfs = {1: [], 2: [], 3: []}
+    for p in range(0, 3):
+        for pos, orflen, orf in startstop_codon(p, seq):
+            orfs[pos].append((orflen, orf))
+    longest_orfs = {}
+    count_total_orfs_found = 0
+    for pos, orf_list in orfs.items():
+        count_total_orfs_found += len(orf_list)
+        longest_orfs[pos] = max(orf_list, default=(0, ''), key=lambda item: item[0])
+    # print('Total orfs found to check against NCBI ORF Finder', count_total_orfs_found)
+    return longest_orfs
+
+
+def longest_orf_in_seq(seq):
+    longest_orfs_per_position = longest_orfs_in_seq_per_pos(seq)
+    longest_length = 0
+    orf_found = (1, 0, '')
+    for pos, (length, orf) in longest_orfs_per_position.items():
+        if length > longest_length:
+            orf_found = pos, length, orf
+    return orf_found
+
+
+def records_with_longest_orfs(f):
+    """ What is the identifier of the sequence containing the longest ORF throughout the sequences in the whole fasta file?
+        What is the starting position of the longest ORF in the sequence that contains it ? Starting position should be 1/2/3
+        Returns dict(identifier, seq, reading frame starting position, longest ORF length and the ORF)"""
+    records = read_fasta.read(f)
+    records_of_longest_orfs = {}
+    for id, seq in records.items():
+        records_of_longest_orfs[id] = {
+            "seq": seq,
+            "orfs": longest_orf_in_seq(seq)
+        }
+    return records_of_longest_orfs
+
+def records_with_longest_orfs_at_pos (f,pos):
+    """ What is the identifier of the sequence containing the longest ORF throughout the sequences in the whole fasta file?
+        What is the starting position of the longest ORF in the sequence that contains it ? Starting position should be 1/2/3
+        Returns dict(identifier, seq, reading frame starting position, longest ORF length and the ORF)"""
+    records = read_fasta.read(f)
+    records_of_longest_orfs = {}
+    for id, seq in records.items():
+        records_of_longest_orfs[id] = {
+            "seq": seq,
+            "orfs": longest_orfs_in_seq_per_pos(seq)[pos]
+        }
+    return records_of_longest_orfs
+
+
 def longest_ORF_in_file(f):
-    """ What is the identifier of the sequence containing the longest ORF throughout the sequences in the whole fasta file?
-        What is the starting position of the longest ORF in the sequence that contains it ? Starting position should be 1/2/3
-        Returns dict(identifier, position, longest orf found and its length)"""
-    records = read_fasta.read(f)
-    records_of_longest_orfs = build_id_pos_longest_orfs(records)
-    records_of_orfs_lengths = {identifier: (pos, len(orf)) for (identifier, (pos, orf)) in records_of_longest_orfs.items()}
-    longest = max(records_of_orfs_lengths.values(), key=lambda item: item[1])
-    identifier = [(id, longest) for id in records_of_orfs_lengths if records_of_orfs_lengths[id] == longest][0][0]
-    return {"id": identifier,
-            "start position": records_of_longest_orfs[identifier][0] + 1,  # !!!! atention to add 1 here cause i used the zero index
-            "longest_ORF": records_of_longest_orfs[identifier][1],
-            "longest_ORF_length": len(records_of_longest_orfs[identifier][1])}
+    records = records_with_longest_orfs(f)
+    longest_length = 0
+    longest = None
+    for id, info in records.items():
+        if info['orfs'][1] > longest_length:
+            longest = info['orfs']
+    return id, info['seq'], longest
 
 
-def longest_ORF_in_file_at_pos(position, f):
-    """ What is the identifier of the sequence containing the longest ORF throughout the sequences in the whole fasta file?
-        What is the starting position of the longest ORF in the sequence that contains it ? Starting position should be 1/2/3
-        Returns dict(identifier, position, longest orf found and its length)"""
-    records = read_fasta.read(f)
-    records_of_longest_orfs = build_id_pos_longest_orfs(records)
-    records_of_orfs_lengths = {identifier: (pos, len(orf)) for (identifier, (pos, orf)) in records_of_longest_orfs.items() if pos == position - 1}
-    longest = max(records_of_orfs_lengths.values(), key=lambda item: item[1])
-    identifier = [(id, longest) for id in records_of_orfs_lengths if records_of_orfs_lengths[id] == longest][0][0]
-    return {"id": identifier,
-            "start position": records_of_longest_orfs[identifier][0] + 1,  # !!!! atention to add 1 here cause i used the zero index
-            "longest_ORF": records_of_longest_orfs[identifier][1],
-            "longest_ORF_length": len(records_of_longest_orfs[identifier][1])}
+def longest_ORF_in_file_at_pos(f, pos):
+    records = records_with_longest_orfs_at_pos(f, pos)
+    longest_length = 0
+    longest = None
+    for id, info in records.items():
+        print(info['orfs'])
+        if info['orfs'][0] > longest_length:
+            longest = info['orfs']
+    return id, info['seq'], pos, longest
 
 
-def build_id_pos_longest_orfs(records):
-    """ Returns dict of id: (pos, longest_orf_found) """
-    result = {}
-    for identifier, seq, in records.items():
-        orfs = find_orfs_in_seq(seq)
-        # print("Sequence", identifier, "has ", len(orfs), "orfs")
-
-        if orfs:
-            result[identifier] = longest_orf_for_seq(orfs)
-    return result
 
 
-def longest_ORF_length_in_file(f):
-    """What is the length of the longest ORF in the file?
-        Returns integer """
-    return longest_ORF_in_file(f)['longest_ORF_length']
-
-
-def longest_ORF_in_given_seq(f, identifier):
+def longest_ORF_for_given_id(f, identifier):
     """For a given sequence identifier, what is the longest ORF contained in the sequence represented by that identifier?"""
     records = read_fasta.read(f)
-    records_of_longest_orfs = build_id_pos_longest_orfs(records)
-    return records_of_longest_orfs[identifier]  # !!!! atention to add 1 to get the position cause i used the zero index
+    desired_seq = records[identifier]
+    return longest_orf_in_seq(desired_seq)
 
 
 if __name__ == "__main__":
     # Longest ORF in whole file
 
-    # longest_orf_at_pos = longest_ORF_in_file(sys.argv[1])
-    # identifier = longest_orf_at_pos['id']
-    # start_pos = longest_orf_at_pos['start position']
-    # l_length = longest_orf_at_pos['longest_ORF_length']
-    # print("Longest ORF in file is at identifier", identifier, "with reading frame start position", start_pos, "and length of", l_length)
+    # l = longest_ORF_in_file(sys.argv[1])
+    # id = l[0]
+    # seq = l[1]
+    # start_pos = l[2][0]
+    # l_length = l[2][1]
+    # orf = l[2][2]
+    # index = seq.index(orf)
+    # print(
+    #     "\nLongest ORF in the whole file has id", id, 
+    #     "has sequence", seq,  "has reading frame start position",
+    #     start_pos,
+    #     "and length of",
+    #     l_length,
+    #     "and is",
+    #     orf, "and the orf starts inside the sequence at pos: index + 1", index + 1)
 
     # Longest ORF in whole file at the given start position
+    l = longest_ORF_in_file_at_pos(sys.argv[1], 2)
+    id = l[0]
+    seq = l[1]
+    start_pos = l[2]
+    l_length = l[3][0]
+    orf = l[3][1]
+    print(
+        "\nLongest ORF in the whole file at start position", start_pos, " has id",  id, 
+        "has sequence", seq,  
+        "and length of",
+        l_length,
+        "and is",
+        orf)
 
-    # longest_orf_at_pos = longest_ORF_in_file_at_pos(2, sys.argv[1])
-    # identifier = longest_orf_at_pos['id']
-    # start_pos = longest_orf_at_pos['start position']
-    # l_length = longest_orf_at_pos['longest_ORF_length']
-    # print("Longest ORF in file with reading frame start position", start_pos, "is at identifier", identifier, "and has the length of", l_length)
 
+
+
+   
     # Longest ORF in a given identifier i.e. gi|142022655|gb|EQ086233.1|16
-    given_id = 'gi|142022655|gb|EQ086233.1|16'
-    pos, orf = longest_ORF_in_given_seq(sys.argv[1], given_id)
-    l_length = len(orf)
-    print('Longest ORF for ', given_id, ' has length', l_length)
+
+    # given_id = 'gi|142022655|gb|EQ086233.1|16'
+    # print('Longest ORF for ', given_id, 'is', longest_ORF_for_given_id(sys.argv[1], given_id))

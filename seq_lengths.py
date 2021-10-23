@@ -28,6 +28,7 @@ def longest_seq(records):
 if __name__ == "__main__":
     f = sys.argv[1]
     parsed_records = read_fasta.read(f)
+    print(compute_lengths(parsed_records))
     # Longest sequences
     long_sequences, l_length = longest_seq(parsed_records)
     sys.stdout.write(

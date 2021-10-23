@@ -37,7 +37,7 @@ def most_freq_repeat(N, f):
     return [k for k in repeats if repeats[k] == max_freq], max_freq
 
 
-N = 4
-print('Repeats dict', all_repeats_in_all_seqs(N, sys.argv[1]))
+N = 12
+# print('Repeats dict', all_repeats_in_all_seqs(N, sys.argv[1]))
 most_freq_repeats, times = most_freq_repeat(N, sys.argv[1])
 print('Most frequent repeats are:', most_freq_repeats, " and they occur", times, "times")
