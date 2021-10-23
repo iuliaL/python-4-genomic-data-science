@@ -1,4 +1,4 @@
-#Python for Genomic Data Science
+## Python for Genomic Data Science
 
 :alien:
 
